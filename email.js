@@ -3,8 +3,13 @@ var fs = require('fs'),
     nodemailer = require('nodemailer'),
     express = require('express'),
     bodyParser = require('body-parser'),
-    uuid = requi re('node-uuid'),
-    http = require('http');
+    uuid = require('node-uuid'), MjpegConsumer = require("mjpeg-consumer"),
+    FileOnWrite = require("file-on-write");
+
+var writer = new FileOnWrite({
+    path: './email',
+    ext: '.jpg'
+});
 
 var app = express();
 app.use(bodyParser.json());
@@ -13,19 +18,13 @@ app.use(bodyParser.urlencoded({
 }));
 
 var sid = uuid.v4(),
-    gmailUser = '',
-    gmailPass = '',
-    fromEmail = "",
-    toEmail = "",
-    passwordWebCam = '',
-    camHost = "";
+    fromEmail = "andre@sollie.info",
+    toEmail = "andre@sollie.info";
 
 var transporter = nodemailer.createTransport({
-    service: 'Gmail',
-    auth: {
-        user: gmailUser,
-        pass: gmailPass
-    }
+    host: 'smtp.altibox.no',
+    port: 25,
+    secure: false // use SSL
 });
 
 var mailOptions = {
@@ -36,52 +35,51 @@ var mailOptions = {
     html: 'Bilde: <img src="cid:' + sid + '"/>',
     attachments: [{
             filename: 'email.jpg',
-            path: '/opt/email/email.jpg',
+            path: 'email.jpg',
             cid: sid //same cid value as in the html img src
         }]
         // html body
 };
-var download = function(uri, filename, callback) {
-    request.head(uri, function(err, res, body) {
-        if (err) {
-            console.log(err);
-            return;
+
+var download = function(url, dest, cb) {
+    var file = fs.createWriteStream(dest);
+    var sendReq = request.get(url).auth('admin', '', false);
+
+    // verify response code
+    sendReq.on('response', function(response) {
+        if (response.statusCode !== 200) {
+            return cb('Response status was ' + response.statusCode);
         }
-        request({
-                url: uri,
-                user: 'admin',
-                pass: passwordWebCam
-            })
-            .pipe(fs.createWriteStream(filename)).on('close', callback);
+    });
+
+    // check for request errors
+    sendReq.on('error', function (err) {
+        fs.unlink(dest);
+        return cb(err.message);
+    });
+
+    sendReq.pipe(file);
+
+    file.on('finish', function() {
+        file.close(cb);  // close() is async, call cb after close completes.
+    });
+
+    file.on('error', function(err) { // Handle errors
+        fs.unlink(dest); // Delete the file async. (But we don't check the result)
+        return cb(err.message);
     });
 };
 
-
 app.post('/', function(req, res) {
-    sid = uuid.v4();
-    http.get({
-        host: camHost,
-        path: '/web/cgi-bin/hi3510/param.cgi?cmd=snap'
-    }, function(res) {
-        res.setEncoding('utf8');
-        res.on('data', function(d) {
-            console.log(d);
-            var rePattern = new RegExp(/var path=\"(.*)\"/);
-            var arrMatches = d.match(rePattern);
-            if (arrMatches == null || arrMatches.length != 2) {
-                return;
+
+    var url = 'http://192.168.1.236/mjpeg/snap.cgi?chn=0';
+    download(url, 'email.jpg', function() {
+        transporter.sendMail(mailOptions, function(error, info) {
+            if (error) {
+                return console.log(error);
             }
-            var url = "http://" + camHost + arrMatches[1];
+            console.log('Message sent: ' + info.response);
 
-            download(url, '/opt/email/email.jpg', function() {
-                transporter.sendMail(mailOptions, function(error, info) {
-                    if (error) {
-                        return console.log(error);
-                    }
-                    console.log('Message sent: ' + info.response);
-
-                });
-            });
         });
     });
     res.send('OK');

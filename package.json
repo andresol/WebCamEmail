@@ -1,0 +1,29 @@
+{
+  "name": "webcamemail",
+  "version": "1.0.0",
+  "description": "\"# WebCamEmail\"",
+  "main": "email.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andresol/WebCamEmail.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andresol/WebCamEmail/issues"
+  },
+  "homepage": "https://github.com/andresol/WebCamEmail#readme",
+  "dependencies": {
+    "body-parser": "^1.18.2",
+    "express": "^4.16.2",
+    "file-on-write": "^1.1.1",
+    "fs": "0.0.1-security",
+    "mjpeg-consumer": "^1.1.0",
+    "node-uuid": "^1.4.8",
+    "nodemailer": "^4.6.2",
+    "request": "^2.85.0"
+  }
+}
